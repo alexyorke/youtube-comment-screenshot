@@ -169,7 +169,7 @@ def render_comment_html(c, width):
 </html>
 """
 
-def main(json_path, dpi_scale, width):
+def main(json_path, dpi_scale, width, padding):
     # load comments
     with open(json_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
@@ -179,17 +179,17 @@ def main(json_path, dpi_scale, width):
     out_dir = Path("screenshots")
     out_dir.mkdir(exist_ok=True)
 
-    # Calculate window size based on args (add padding)
-    # Use the provided width and a large fixed height
-    scaled_width = int(width * dpi_scale) + 40 # Add horizontal padding
+    # Calculate window size based on args (add some buffer)
+    # Needs to be large enough for scaled comment + padding 
+    scaled_width_est = int(width * dpi_scale) + (2 * padding) + 40 # Add buffer 
     fixed_height = 2000 # Keep height large for auto-crop
 
     # configure headless Chrome
     chrome_opts = Options()
     chrome_opts.add_argument("--headless")
     chrome_opts.add_argument("--disable-gpu")
-    # Set window size dynamically based on width arg and scale
-    chrome_opts.add_argument(f"--window-size={scaled_width},{fixed_height}") 
+    # Set window size dynamically based on width arg, scale, and padding
+    chrome_opts.add_argument(f"--window-size={scaled_width_est},{fixed_height}") 
     service = ChromeService(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=chrome_opts)
 
@@ -233,25 +233,29 @@ def main(json_path, dpi_scale, width):
         # Crop the original image if content was found
         if bbox:
             cropped_img = img.crop(bbox)
+            
+            # Add padding if requested
+            if padding > 0:
+                new_width = cropped_img.width + 2 * padding
+                new_height = cropped_img.height + 2 * padding
+                # Create new white background image
+                padded_img = Image.new('RGB', (new_width, new_height), (255, 255, 255))
+                # Paste cropped image onto the center
+                paste_pos = (padding, padding)
+                padded_img.paste(cropped_img, paste_pos)
+                img_to_save = padded_img # Save the padded version
+            else:
+                 img_to_save = cropped_img # Save the original cropped version
         else:
             # Handle case where screenshot is entirely white (error?)
             print(f"Warning: Screenshot for {c['id']} seems empty.")
-            cropped_img = img # Keep the original (blank) image
-
-        # Calculate crop box based on original location/size and dpi_scale
-        # left = x 
-        # top = y
-        # right = x + w * dpi_scale
-        # bottom = y + h * dpi_scale
+            img_to_save = img # Keep the original (blank) image
         
-        # Crop the image
-        # cropped_img = img.crop((left, top, right, bottom)) # Removed manual crop
-        
-        # Save the auto-cropped image
+        # Save the final (potentially padded) image
         file_name = out_dir / f"{c['id']}.png"
-        cropped_img.save(file_name)
+        img_to_save.save(file_name)
         
-        print(f"Saved: {file_name} (Scale: {dpi_scale}x)")
+        print(f"Saved: {file_name} (Scale: {dpi_scale}x, Padding: {padding}px)")
 
         # Reset transform if it was applied
         if dpi_scale > 1.0:
@@ -266,7 +270,9 @@ if __name__ == "__main__":
                         help='Device scale factor for rendering (e.g., 2.0 for 2x DPI). Default is 1.0.')
     parser.add_argument('--width', type=int, default=420,
                         help='Width of the comment element in pixels. Default is 420.')
+    parser.add_argument('--padding', type=int, default=0,
+                        help='Whitespace padding (in pixels) to add around the comment. Default is 0.')
     
     args = parser.parse_args()
 
-    main(args.json_path, args.dpi, args.width)
+    main(args.json_path, args.dpi, args.width, args.padding)
