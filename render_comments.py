@@ -11,6 +11,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 import urllib.parse
+import argparse
+from PIL import Image, ImageChops
+import io
 
 def render_comment_html(c):
     # escape text to avoid breaking HTML
@@ -34,6 +37,7 @@ def render_comment_html(c):
       padding: 10px;
       border-bottom:1px solid #e0e0e0;
       width: 420px;
+      overflow: hidden;
     }}
     .avatar {{
       flex-shrink: 0;
@@ -87,11 +91,11 @@ def render_comment_html(c):
 </html>
 """
 
-def main(json_path):
+def main(json_path, dpi_scale):
     # load comments
     with open(json_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
-    comments = data["comments"] # Access comments via the key
+    comments = data["comments"] 
 
     # prepare output dir
     out_dir = Path("screenshots")
@@ -101,31 +105,83 @@ def main(json_path):
     chrome_opts = Options()
     chrome_opts.add_argument("--headless")
     chrome_opts.add_argument("--disable-gpu")
-    chrome_opts.add_argument("--window-size=500,200")
+    # Use a large fixed window size
+    chrome_opts.add_argument("--window-size=2000,2000") 
     service = ChromeService(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=chrome_opts)
 
     for c in comments:
         html_src = render_comment_html(c)
-        # URL-encode the HTML source
         encoded_html = urllib.parse.quote(html_src)
         data_url = "data:text/html;charset=utf-8," + encoded_html
         driver.get(data_url)
 
-        # Wait for the comment element to be present before finding it
-        wait = WebDriverWait(driver, 10) # Wait up to 10 seconds
+        wait = WebDriverWait(driver, 10) 
         comment_el = wait.until(EC.presence_of_element_located((By.ID, "comment")))
+        
+        # Get element dimensions BEFORE scaling
+        location = comment_el.location
+        size = comment_el.size
+        x, y = location['x'], location['y']
+        w, h = size['width'], size['height']
+        
+        # Apply scaling via CSS transform if dpi_scale > 1.0
+        if dpi_scale > 1.0:
+            driver.execute_script(f"arguments[0].style.transform = 'scale({dpi_scale})'; arguments[0].style.transformOrigin = 'top left';", comment_el)
+            # Optional delay - might be needed for complex rendering
+            # import time
+            # time.sleep(0.1) 
 
-        # find the comment container and screenshot it
+        # Take screenshot of the viewport
+        png = driver.get_screenshot_as_png()
+        
+        # Load image with Pillow and ensure RGB
+        img = Image.open(io.BytesIO(png)).convert('RGB')
+
+        # Create a white background image
+        bg = Image.new('RGB', img.size, (255, 255, 255))
+        
+        # Calculate difference between image and white background
+        diff = ImageChops.difference(img, bg)
+        
+        # Get bounding box of the difference (non-white areas)
+        bbox = diff.getbbox()
+        
+        # Crop the original image if content was found
+        if bbox:
+            cropped_img = img.crop(bbox)
+        else:
+            # Handle case where screenshot is entirely white (error?)
+            print(f"Warning: Screenshot for {c['id']} seems empty.")
+            cropped_img = img # Keep the original (blank) image
+
+        # Calculate crop box based on original location/size and dpi_scale
+        # left = x 
+        # top = y
+        # right = x + w * dpi_scale
+        # bottom = y + h * dpi_scale
+        
+        # Crop the image
+        # cropped_img = img.crop((left, top, right, bottom)) # Removed manual crop
+        
+        # Save the auto-cropped image
         file_name = out_dir / f"{c['id']}.png"
-        comment_el.screenshot(str(file_name))
-        print(f"Saved: {file_name}")
+        cropped_img.save(file_name)
+        
+        print(f"Saved: {file_name} (Scale: {dpi_scale}x)")
+
+        # Reset transform if it was applied
+        if dpi_scale > 1.0:
+            driver.execute_script("arguments[0].style.transform = 'none';", comment_el)
 
     driver.quit()
 
 if __name__ == "__main__":
-    import sys
-    if len(sys.argv) != 2:
-        print("Usage: python render_comments.py comments.json")
-        sys.exit(1)
-    main(sys.argv[1])
+    parser = argparse.ArgumentParser(description='Render comment threads from JSON to PNG images using Selenium.')
+    parser.add_argument('json_path', help='Path to the JSON file containing comment data.')
+    parser.add_argument('--dpi', type=float, default=1.0, 
+                        help='Device scale factor for rendering (e.g., 2.0 for 2x DPI). Default is 1.0.')
+    
+    args = parser.parse_args()
+
+    main(args.json_path, args.dpi)
