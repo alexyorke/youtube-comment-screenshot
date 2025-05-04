@@ -127,7 +127,9 @@ def render_comment_html(c, width):
       /* margin-left: 4px; */ /* Remove left margin, handled by button padding */
       margin-right: 4px; /* Space before thumb-down icon */
       font-size: 12px;
-      line-height: 1; /* Adjust line-height for alignment */
+      position: relative; /* Add relative positioning */
+      top: 4px; /* Shift down slightly more */
+      left: 4px; /* Shift right a bit more */
     }}
     .footer .reply-btn {{
         margin-left: 8px; /* --ytd-margin-2x */
@@ -137,6 +139,7 @@ def render_comment_html(c, width):
         cursor: pointer;
         padding: 8px 16px; /* YouTube's button padding */
         border-radius: 18px; /* More rounded */
+        display: none; /* Hide the reply button */
     }}
     .footer .reply-btn:hover {{
         background-color: rgba(0, 0, 0, 0.05); /* --yt-spec-badge-chip-background */
@@ -156,8 +159,8 @@ def render_comment_html(c, width):
          <!-- Add negative margin-left to first icon button -->
          <span class="icon-button" style="margin-left: -8px;"><span class="icon">{thumb_up_svg}</span></span>
          <span class="likes">{likes_str if likes > 0 else ''}</span>
-         <!-- Remove margin-left from second icon button -->
-         <span class="icon-button"><span class="icon">{thumb_down_svg}</span></span> 
+         <!-- Increase margin-left for second icon button -->
+         <span class="icon-button" style="margin-left: 8px;"><span class="icon">{thumb_down_svg}</span></span> 
          <span class="reply-btn">Reply</span>
       </div>
     </div>
