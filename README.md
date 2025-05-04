@@ -1,6 +1,6 @@
 # YouTube Comment Screenshot
 
-This script renders individual YouTube comment threads from a JSON file (obtained via `yt-dlp`) into PNG image files using Selenium and Pillow. It allows customization of the output image dimensions, DPI scaling, and padding.
+This script renders all individual YouTube comment threads from a JSON file (obtained via `yt-dlp`) into PNG image files using Selenium and Pillow. It allows customization of the output image dimensions, DPI scaling, and padding.
 The script supports rendering comments in English and other languages, provided the fonts used by the browser can display the necessary characters.
 
 ![Sample Output](sample.png)
