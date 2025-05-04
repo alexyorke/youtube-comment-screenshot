@@ -97,17 +97,22 @@ def render_comment_html(c, width):
     }}
     .footer {{
       display: flex; 
-      align-items: center;
+      align-items: center; /* Use flexbox alignment */
       font-size: 13px;
       color: #606060; /* --yt-spec-text-secondary */
     }}
     .footer .icon-button {{
       /* Button wrapper for icon */
       display: inline-flex;
-      padding: 8px; /* Give space around icon */
+      align-items: center; /* Center icon in button */
+      justify-content: center; /* Center icon in button */
+      padding: 8px; /* Restore padding for hover area */
       border-radius: 50%; /* Circular hover */
       cursor: pointer;
-      margin-right: -8px; /* Offset padding */
+      /* Remove fixed width/height */
+      /* width: 32px; */ 
+      /* height: 32px; */
+      box-sizing: border-box; /* Include padding/border in size */
     }}
      .footer .icon-button:hover {{
          background-color: rgba(0, 0, 0, 0.05); /* --yt-spec-badge-chip-background */
@@ -119,9 +124,10 @@ def render_comment_html(c, width):
       fill: #606060; /* --yt-spec-text-secondary */
     }}
     .footer .likes {{
-      margin-left: 4px; /* Space after thumb icon */
-      margin-right: 8px; /* Space before dislike icon */
+      /* margin-left: 4px; */ /* Remove left margin, handled by button padding */
+      margin-right: 4px; /* Space before thumb-down icon */
       font-size: 12px;
+      line-height: 1; /* Adjust line-height for alignment */
     }}
     .footer .reply-btn {{
         margin-left: 8px; /* --ytd-margin-2x */
@@ -147,9 +153,11 @@ def render_comment_html(c, width):
       </div>
       <div class="text">{text}</div>
       <div class="footer">
-         <span class="icon-button"><span class="icon">{thumb_up_svg}</span></span>
+         <!-- Add negative margin-left to first icon button -->
+         <span class="icon-button" style="margin-left: -8px;"><span class="icon">{thumb_up_svg}</span></span>
          <span class="likes">{likes_str if likes > 0 else ''}</span>
-         <span class="icon-button" style="margin-left: 0px;"><span class="icon">{thumb_down_svg}</span></span>
+         <!-- Remove margin-left from second icon button -->
+         <span class="icon-button"><span class="icon">{thumb_down_svg}</span></span> 
          <span class="reply-btn">Reply</span>
       </div>
     </div>
